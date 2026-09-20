@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#111318"><title>Fracture Colony</title>
+<style>
+:root{--bg:#0b0d12;--panel:#151923;--ink:#eef1f5;--muted:#9da7b5;--line:#2a3140;--accent:#d9c98d;--danger:#e17a76}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#293044 0,#0b0d12 45%);color:var(--ink);font:15px system-ui,-apple-system,sans-serif;min-height:100vh}
+#app{max-width:650px;margin:auto;padding:env(safe-area-inset-top) 14px calc(28px + env(safe-area-inset-bottom))}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 2px 10px}.title{font-weight:800;letter-spacing:.08em}.day{color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.stat,.person,.choice,.log,.scene{background:rgba(21,25,35,.94);border:1px solid var(--line);border-radius:14px}
+.stat{padding:9px;text-align:center}.stat b{display:block;font-size:18px}.stat span{font-size:11px;color:var(--muted)}
+.scene{margin-top:10px;overflow:hidden;position:relative;min-height:270px;box-shadow:0 18px 60px #0008}
+.art{height:150px;position:relative;background:linear-gradient(#283347,#171923);overflow:hidden}
+.moon{position:absolute;width:68px;height:68px;border-radius:50%;background:#e7dfc5;right:10%;top:18px;box-shadow:0 0 40px #e7dfc566;animation:pulse 4s infinite alternate}
+.tower{position:absolute;width:45px;height:105px;background:#090b10;bottom:0;left:18%;clip-path:polygon(25% 0,75% 0,100% 100%,0 100%)}
+.beam{position:absolute;width:4px;height:190px;background:#9ef4ff;left:50%;top:-20px;box-shadow:0 0 20px #9ef4ff;transform:rotate(8deg);animation:flicker 2s infinite}
+.fog{position:absolute;left:-30%;bottom:-35px;width:160%;height:80px;border-radius:50%;background:#bac6d322;filter:blur(12px);animation:drift 9s linear infinite}
+@keyframes drift{to{transform:translateX(18%)}}@keyframes pulse{to{opacity:.72;transform:scale(1.06)}}@keyframes flicker{50%{opacity:.35}}
+.copy{padding:16px}.tag{font-size:11px;letter-spacing:.12em;color:var(--accent);text-transform:uppercase}.copy h2{margin:6px 0 8px;font-size:23px}.copy p{margin:0;color:#cbd1da;line-height:1.48}
+.choices{display:grid;gap:8px;margin-top:10px}.choice{padding:13px;text-align:left;color:var(--ink);font:inherit;cursor:pointer;transition:.15s}.choice:active{transform:scale(.985);background:#202637}.choice small{display:block;color:var(--muted);margin-top:4px}
+.section{margin:16px 2px 7px;font-weight:700}.people{display:grid;grid-template-columns:1fr 1fr;gap:8px}.person{padding:10px;display:flex;gap:9px;align-items:center}.face{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#4b566d,#222938);font-size:21px;position:relative}.mark{position:absolute;font-size:13px;right:-4px;bottom:-3px}.person b{display:block}.person small{color:var(--muted)}.log{padding:12px;color:#b8c0cc;line-height:1.45;max-height:190px;overflow:auto}.result{animation:flash .45s}@keyframes flash{50%{filter:brightness(1.6)}}button.reset{width:100%;margin-top:14px;border:0;background:transparent;color:#737e8f;padding:12px}
+</style></head>
+<body><div id="app"></div>
+<script>
+const names=["Mara Venn","Orrin Pike","Sister Cal","Juno-9","Tomas Reed","Ilya Moss","Nell Ash"];
+const traits=["Kind • Superstitious","Clever • Reckless","Stoic • Curious","Devout • Vindictive","Funny • Cowardly","Empathic • Strange"];
+const base={day:1,food:22,scrap:12,medicine:5,omen:0,people:[],log:["You founded a settlement where several impossible ages overlap."],flags:{},event:0};
+const events=[
+{tag:"Signal / Unknown",title:"The Dead Satellite Knows Your Names",text:"A medieval priest arrives carrying a brass reliquary. Inside, a radio speaks in a calm synthetic voice. It lists every colonist by name—then asks to speak privately with one of them.",choices:[
+["Let it choose whom to speak with.","Trust the machine, at least for tonight.",s=>{s.omen++;s.flags.satellite=true;mark(s,0,"◉");return "Mara returns pale. She refuses to repeat what the satellite told her."}],
+["Have your occultist interrogate the signal.","Treat technology like a spirit.",s=>{s.scrap-=2;s.flags.ritualAI=true;mark(s,1,"✦");return "The radio begins answering questions that were never spoken aloud."}],
+["Smash the reliquary and keep its components.","Useful metal is useful metal.",s=>{s.scrap+=6;s.flags.smashed=true;return "At midnight, every powered device in the colony whispers: RUDE."}],
+["Give it back to the priest and send him away.","Some mysteries belong elsewhere.",s=>{s.food+=2;s.flags.priest=true;return "The priest leaves you blessed bread. Three days later you see the satellite move across the sky."}]
+]},
+{tag:"Biology / Horror",title:"A Refugee With the Wrong Shadow",text:"A starving traveler begs entry. In the firelight, her shadow scratches at the gate even when she stands perfectly still. She claims not to know why.",choices:[
+["Take her in as a colonist.","People are more than their shadows.",s=>{addPerson(s,"Vey Ardent","Gentle • Haunted","♟");s.food-=3;s.flags.shadow=true;return "Vey joins. Her shadow sleeps standing up."}],
+["Quarantine her in the old generator room.","Compassion, with thick walls.",s=>{s.medicine--;s.flags.shadowStudy=true;return "The generator starts producing power despite having no fuel."}],
+["Ask the shadow what it wants.","Maybe you're interviewing the wrong refugee.",s=>{s.omen+=2;mark(s,2,"☾");return "It points at one of your colonists, then draws a crown in the dirt."}],
+["Turn her away with supplies.","You cannot gamble the colony on every mystery.",s=>{s.food-=4;s.flags.exiledShadow=true;return "She thanks you. The shadow stays behind."}]
+]},
+{tag:"Discovery / Impossible",title:"The Vending Machine in the Ruins",text:"Scouts find a pristine vending machine glowing beneath a collapsed castle. Its display reads: PAYMENT ACCEPTED: ONE MEMORY.",choices:[
+["Let a volunteer buy something.","Someone is willing to forget.",s=>{s.flags.memoryTrade=true;s.medicine+=5;mark(s,1,"▣");return "Orrin receives a silver injector that heals old wounds. He can no longer remember his mother's face."}],
+["Feed it recorded colony history.","See if a machine can tell memory from data.",s=>{s.flags.cheatedMachine=true;s.scrap+=8;return "It dispenses a humming cube. The screen changes to: CLEVER."}],
+["Destroy it before anyone gets tempted.","No bargains with impossible machines.",s=>{s.scrap+=4;s.flags.destroyVend=true;return "The machine bleeds warm seawater. Something knocks from inside."}],
+["Offer it a memory nobody owns anymore.","Tell it the story of a dead civilization.",s=>{s.omen++;s.flags.oldMemory=true;return "For several seconds, the entire colony remembers a city that never existed."}]
+]},
+{tag:"Colony / Consequence",title:"Something Is Under the Nursery",text:"Children report singing beneath the floor. Excavation reveals either a sealed pre-collapse laboratory or a tomb—your experts violently disagree. The door is warm.",choices:[
+["Open it now.","Knowledge favors the bold.",s=>{s.food+=8;s.omen+=2;s.flags.openDoor=true;mark(s,0,"╳");return "Cold blue light floods the room. Your crops grow overnight. Mara develops a second pulse."}],
+["Build the nursery somewhere else and seal it.","Survival does not require every answer.",s=>{s.scrap-=4;s.flags.sealedDoor=true;return "The singing stops. Once a month, the sealed door is found freshly painted."}],
+["Ask the children what the song means.","They noticed it first.",s=>{s.flags.childrenKnow=true;s.food+=3;return "They translate it easily: 'WE HAVE BEEN WAITING FOR THE SMALL ONES.'"}],
+["Invite a nearby witch-engineer to inspect it.","Combine expertise that should not coexist.",s=>{s.scrap-=2;s.medicine+=2;s.flags.witchEngineer=true;mark(s,3,"⚙");return "She calls it both a demon and a reactor. Apparently those categories overlap."}]
+]}
+];
+function rng(a){return a[Math.floor(Math.random()*a.length)]}
+function init(){let s=structuredClone(base);for(let i=0;i<4;i++)s.people.push({name:names[i],trait:traits[i],mark:""});return s}
+function addPerson(s,n,t,m){s.people.push({name:n,trait:t,mark:m})}function mark(s,i,m){if(s.people[i])s.people[i].mark=m}
+let state=JSON.parse(localStorage.getItem("fractureColony")||"null")||init();
+function save(){localStorage.setItem("fractureColony",JSON.stringify(state))}
+function choose(i){let e=events[state.event%events.length],c=e.choices[i];let result=c[2](state);state.day+=Math.floor(Math.random()*3)+2;state.food-=Math.max(1,Math.floor(state.people.length/2));state.log.unshift("Day "+state.day+": "+result);state.event++;if(state.food<0){state.food=0;state.log.unshift("Hunger spreads. Future choices may become desperate.")}save();render(result)}
+function render(result=""){let e=events[state.event%events.length];document.querySelector("#app").innerHTML=`
+<header><div class="title">FRACTURE COLONY</div><div class="day">DAY ${state.day}</div></header>
+<div class="stats"><div class="stat"><b>${state.people.length}</b><span>PEOPLE</span></div><div class="stat"><b>${state.food}</b><span>FOOD</span></div><div class="stat"><b>${state.scrap}</b><span>SCRAP</span></div><div class="stat"><b>${state.omen}</b><span>OMEN</span></div></div>
+<div class="scene ${result?'result':''}"><div class="art"><div class="moon"></div><div class="tower"></div><div class="beam"></div><div class="fog"></div></div><div class="copy"><div class="tag">${e.tag}</div><h2>${e.title}</h2><p>${e.text}</p>${result?`<p style="margin-top:10px;color:#d9c98d"><b>Last consequence:</b> ${result}</p>`:""}</div></div>
+<div class="choices">${e.choices.map((c,i)=>`<button class="choice" onclick="choose(${i})"><b>${c[0]}</b><small>${c[1]}</small></button>`).join("")}</div>
+<div class="section">Colonists</div><div class="people">${state.people.map(p=>`<div class="person"><div class="face">◌${p.mark?`<span class="mark">${p.mark}</span>`:""}</div><div><b>${p.name}</b><small>${p.trait}</small></div></div>`).join("")}</div>
+<div class="section">Chronicle</div><div class="log">${state.log.map(x=>`<div>• ${x}</div>`).join("")}</div>
+<button class="reset" onclick="if(confirm('Start a new colony?')){localStorage.removeItem('fractureColony');state=init();render()}">Start new colony</button>`}
+render();
+</script></body></html>
